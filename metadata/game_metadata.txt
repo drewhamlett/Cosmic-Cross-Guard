@@ -1,0 +1,27 @@
+devid=drewhjava
+version=0.5
+icon=metadata/icon.png
+devtitle=Cosmic Cross Guard
+gameid=cosmic-cross-guard-2
+gametitle=Cosmic Cross Guard
+
+# === Flags available at all licensing tiers ===
+
+# Defines the render scale quality for sprites. scale_quality=0 (default) is nearest neighbor, scale_quality=1 is linear, scale_quality=2 is antialiased.
+scale_quality=0
+
+# === Flags available in DragonRuby Game Toolkit Pro ====
+# Uncomment the entry below to bytecode compile your Ruby code
+compile_ruby=true
+
+highdpi=true
+
+hd=true
+
+# orientation=portrait
+# Uncomment the entry below to specify the package name for your APK
+# packageid=org.dev.gamename
+
+
+#allscreen_max_scale=400
+
