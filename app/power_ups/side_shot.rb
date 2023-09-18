@@ -1,7 +1,7 @@
 require "app/constants"
 
 class SideShot
-  BULLET_SPEED = 5
+  BULLET_SPEED = 8
   # FIRE_INTERVAL = 150  # 5 seconds * 60 frames per second
   FIRE_INTERVAL = 120
 
@@ -10,16 +10,6 @@ class SideShot
   def initialize
     @last_fired = 0
     @bullets = []
-  end
-
-  def collision(args, blocks:)
-    blocks.each do |block|
-      @bullets.each do |bullet|
-        if bullet.intersect_rect?(block)
-          blocks.delete(block)
-        end
-      end
-    end
   end
 
   def tick(args, player:)

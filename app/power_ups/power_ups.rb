@@ -1,34 +1,34 @@
 class PowerUps
-  MAX_LEVEL = 5
+  MAX_LEVEL = 30
 
   def self.defaults(args)
     state = args.state
     state.power_up_left_right ||= []
     state.power_ups ||= {
-      pendulum: {
-        level: 1,
-        active: false,
-        text: "Base Orb: Protect base with an orb"
-      },
+      # pendulum: {
+      #   level: 1,
+      #   active: false,
+      #   text: "Base Orb: Protect base with an orb"
+      # },
       ghost: {
         level: 1,
         active: false,
-        text: "Ghost: Leave a ghost behind when dashing"
+        text: "Ghost Dash"
       },
       repair_base: {
         level: 1,
         active: false,
-        text: "Repair Base: Yeah, you can repair the base"
+        text: "Repair Base"
       },
       side_shot: {
         level: 1,
         active: false,
-        text: "Side Shot: Shoots bullets to the left and right"
+        text: "Side Shot"
       },
       rotating_orb: {
         level: 1,
         active: false,
-        text: "Rotating Orb: Orb that is powerful"
+        text: "Rotating Orb"
       },
       # gun: {
       #   type: :gun,
@@ -38,14 +38,14 @@ class PowerUps
       # },
       homing_missile: {
         level: 1,
-        active: true,
-        text: "Homing Missile: Shoots missiles that follow the enemy"
+        active: false,
+        text: "Homing Missile"
+      },
+      laser: {
+        level: 1,
+        active: false,
+        text: "Laser"
       }
-      # laser: {
-      #   level: 1,
-      #   active: false,
-      #   text: "Laser: Shoots a laser that destroys everything in its path"
-      # }
     }
   end
 

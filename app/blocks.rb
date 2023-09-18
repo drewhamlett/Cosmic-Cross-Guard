@@ -20,9 +20,7 @@ class Blocks
   end
 
   def tick(args)
-    if (state.tick_count % 2.seconds).zero?
-      spawn_blocks(args)
-    end
+    spawn_blocks(args)
 
     block_index = 0
     while block_index < @blocks.size
@@ -70,7 +68,7 @@ class Blocks
           g: block.particle_color[1],
           b: block.particle_color[2],
           path: "sprites/glow_pixel.png",
-          a: block.a - 150,
+          a: block.a - 140,
           angle: block.angle,
           blendmode_enum: (block.hit && block.flash_time > 0) ? 2 : 1
         }
@@ -122,8 +120,8 @@ class Blocks
     end
   end
 
-  def handle_orb_collision(args, block)
-    block.damage(1, args) do
+  def handle_orb_collision(args, block, rotating_orb)
+    block.damage(rotating_orb.damage, args) do
       Sound.play("hits/hit_8.ogg", gain: 0.15, key: :orb_hit)
       ScreenShake.shake(args, t: 5, i: 10)
       HitLabel.spawn(
@@ -132,7 +130,7 @@ class Blocks
         y: block.y,
         dx: Utils.random(-5, 5),
         dy: Utils.random(-5, 5),
-        text: "2",
+        text: rotating_orb.damage.to_s,
         critical: true
       )
 
@@ -188,7 +186,25 @@ class Blocks
     end
   end
 
-  def collision(args, player:, side_shot:, gun:)
+  def side_shot_collision(side_shot:)
+    side_shot.bullets.each do |bullet|
+      collisions = args.geometry.find_all_intersect_rect(
+        bullet,
+        @blocks
+      )
+      collisions.each do |block|
+        next unless block.fade_start_time == -1 && block.hit == false
+
+        block.damage(1, args) do
+          side_shot.bullets.delete(bullet)
+          block.dx = -bullet.dx * 0.5
+          Sound.play("hits/hit_1.ogg", gain: 0.15, key: :player_side_shot_hit)
+        end
+      end
+    end
+  end
+
+  def collision(args, player:, side_shot:, gun:, rotating_orb:)
     base_collision
 
     player_blocks = args.geometry.find_all_intersect_rect(
@@ -199,6 +215,10 @@ class Blocks
     player_blocks.each do |block|
       next unless block.fade_start_time == -1 && block.hit == false
       handle_player_collision(args, block, player)
+    end
+
+    if state.power_ups.side_shot.active
+      side_shot_collision(side_shot: side_shot)
     end
 
     if state.power_ups.ghost.active
@@ -225,166 +245,7 @@ class Blocks
 
       orb_blocks.each do |block|
         next unless block.fade_start_time == -1 && block.hit == false
-        handle_orb_collision(args, block)
-      end
-    end
-  end
-
-  def collision4(args, player:, side_shot:, gun:)
-    grid_size = 64
-    block_grid = Hash.new { |hash, key| hash[key] = [] }
-
-    @blocks.each do |block|
-      next if block.hit
-      next if block.y < 650
-
-      base_blocks = args.geometry.find_all_intersect_rect(block, state.base).filter { |b| !b.hit }
-
-      next if base_blocks.empty?
-
-      base = base_blocks.first
-
-      base.hit = true
-      block.damage(10, args)
-
-      block.dx = Utils.random(-1, 1)
-      block.dy = block.speed * 0.3
-      HitLabel.spawn(args, x: block.x, y: block.y, dx: block.dx, dy: block.dy, text: "10", critical: true)
-
-      Particles.spawn_random(
-        args,
-        x: block.x,
-        y: block.y + 10,
-        speed: [2, 2],
-        amount: [2, 2],
-        life: [10, 20],
-        color: block.particle_color || [103, 205, 252],
-        opacity: [200, 255],
-        size: [2, 8]
-      )
-    end
-
-    @blocks.each do |b|
-      key = [
-        (b.x.to_i / grid_size).round,
-        (b.y.to_i / grid_size).round
-      ]
-
-      block_grid[key] << b
-    end
-
-    player_x_rounded = (player.entity[:x].to_i / grid_size).round
-    player_y_rounded = (player.entity[:y].to_i / grid_size).round
-
-    orb_x_rounded = (args.state.orb[:x].to_i / grid_size).round
-    orb_y_rounded = (args.state.orb[:y].to_i / grid_size).round
-
-    pend_x_rounded = (args.state.pendulum[:x].to_i / grid_size).round
-    pend_y_rounded = (args.state.pendulum[:y].to_i / grid_size).round
-
-    adjacent_keys_player = [-1, 0, 1].product([-1, 0, 1]).map do |dx, dy|
-      [player_x_rounded + dx, player_y_rounded + dy]
-    end
-
-    adjacent_keys_orb = [-1, 0, 1].product([-1, 0, 1]).map { |dx, dy| [orb_x_rounded + dx, orb_y_rounded + dy] }
-
-    adjacent_keys_pendulum = [-1, 0, 1].product([-1, 0, 1]).map { |dx, dy| [pend_x_rounded + dx, pend_y_rounded + dy] }
-
-    all_adjacent_keys = (adjacent_keys_player + adjacent_keys_orb + adjacent_keys_pendulum).uniq
-
-    all_adjacent_keys.each do |key|
-      next unless block_grid.key?(key)
-
-      # blocks = block_grid[key]
-
-      # blocks.each do |block|
-      #   args.render_target(:game).borders << {
-      #     x: block.x,
-      #     y: block.y,
-      #     w: 32,
-      #     h: 32,
-      #     r: 255,
-      #     g: 0,
-      #     b: 0
-      #   }
-      # end
-
-      intersecting_blocks = args.geometry.find_all_intersect_rect(player.entity, block_grid[key])
-
-      intersecting_blocks.each do |block|
-        next unless block.fade_start_time == -1 && block.hit == false
-
-        handle_player_collision(args, block, player)
-      end
-
-      intersecting_blocks_orb = args.geometry.find_all_intersect_rect(args.state.pendulum, block_grid[key])
-      intersecting_blocks_orb.each do |block|
-        next unless block.fade_start_time == -1 && block.hit == false
-
-        block.damage(1, args) do
-          Sound.play("hits/hit_8.ogg", gain: 0.15, key: :orb_hit)
-          ScreenShake.shake(args, t: 5, i: 10)
-          HitLabel.spawn(
-            args,
-            x: block.x,
-            y: block.y,
-            dx: Utils.random(-5, 5),
-            dy: Utils.random(-5, 5),
-            text: "2",
-            critical: true
-          )
-
-          Particles.spawn_random(
-            args,
-            x: block.x + 5,
-            y: block.y + 5,
-            speed: [2, 8],
-            amount: [2, 8],
-            life: [10, 30],
-            color: block.particle_color || [103, 205, 252],
-            acceleration_x: [-0.1, 0.1],
-            acceleration_y: [-0.1, 0.1],
-            opacity: [200, 255],
-            size: [2, 8]
-          )
-          block.dx = -args.state.pendulum[:dx] * 0.5
-          block.dy = -args.state.pendulum[:dy] * 0.5
-        end
-      end
-
-      intersecting_blocks_orb = args.geometry.find_all_intersect_rect(args.state.orb, block_grid[key])
-      intersecting_blocks_orb.each do |block|
-        next unless block.fade_start_time == -1 && block.hit == false
-
-        block.damage(1, args) do
-          Sound.play("hits/hit_8.ogg", gain: 0.15, key: :orb_hit)
-          ScreenShake.shake(args, t: 5, i: 10)
-          HitLabel.spawn(
-            args,
-            x: block.x,
-            y: block.y,
-            dx: Utils.random(-5, 5),
-            dy: Utils.random(-5, 5),
-            text: "2",
-            critical: true
-          )
-
-          Particles.spawn_random(
-            args,
-            x: block.x + 5,
-            y: block.y + 5,
-            speed: [2, 8],
-            amount: [2, 8],
-            life: [10, 30],
-            color: block.particle_color || [103, 205, 252],
-            acceleration_x: [-0.1, 0.1],
-            acceleration_y: [-0.1, 0.1],
-            opacity: [200, 255],
-            size: [2, 8]
-          )
-          block.dx = -args.state.orb[:dx] * 0.5
-          block.dy = -args.state.orb[:dy] * 0.5
-        end
+        handle_orb_collision(args, block, rotating_orb)
       end
     end
   end
@@ -406,6 +267,15 @@ class Blocks
 
   def spawn_x(size = 200)
     Utils.random((1280 / 2) - (size / 2), (1280 / 2) + (size / 2))
+  end
+
+  def difficulty_modifier
+    current_level = args.state.current_level
+    if current_level > 8
+      (current_level - 8) * 0.1 # Increase difficulty by 10% for each level above 8
+    else
+      0
+    end
   end
 
   def spawn_blocks(args)
@@ -481,32 +351,104 @@ class Blocks
 
     if current_level == 5
       size = 500
-      every 1.seconds / 2 do
+      every 1.seconds do
         spawn_at(x: spawn_x(size), speed: 1, clazz: EnemySmall, health: 2)
         spawn_at(x: spawn_x(size), speed: 1, clazz: EnemyLarge, health: 2)
       end
     end
 
     if current_level == 6
-      size = 300
-      every 1.seconds / 5 do
+      size = 250
+      every 2.seconds do
         spawn_at(x: spawn_x(size), speed: 2, clazz: EnemySmall, health: 2)
       end
 
-      every 1.seconds / 5 do
-        spawn_at(x: spawn_x(size), speed: 3, clazz: EnemySmall, health: 1)
-      end
-
-      every 1.seconds / 5 do
-        spawn_at(x: spawn_x(size), speed: 4, clazz: EnemySmall, health: 1)
-      end
-
       every 3.seconds do
-        spawn_at(x: spawn_x(size), speed: 1, clazz: EnemyLarge, health: 2)
+        spawn_at(x: spawn_x(size), speed: 0.8, clazz: EnemyLarge, health: 2)
       end
 
       every 2.seconds do
-        spawn_at(x: spawn_x(size), speed: 0.8, clazz: EnemyMedium, health: 3)
+        spawn_at(x: spawn_x(size), speed: 0.5, clazz: EnemyMedium, health: 3)
+      end
+    end
+
+    if current_level == 7
+      spawn_in_circle unless args.state.spawned_in_circle_level_7
+
+      args.state.spawned_in_circle_level_7 = true
+
+      every 8.seconds do
+        spawn_in_circle(radius: 100, num_enemies: 20)
+      end
+    end
+
+    if current_level == 8
+      size = 350
+      spawn_in_circle(radius: 350, num_enemies: 35) unless args.state.spawned_in_circle_level_8
+
+      args.state.spawned_in_circle_level_8 = true
+
+      every 3.seconds do
+        spawn_at(x: spawn_x(size), speed: 1, clazz: EnemyMedium, health: 3)
+      end
+    end
+
+    if current_level > 8 && current_level <= 12
+      modifier = difficulty_modifier
+      size = 300 + (70 * modifier)
+
+      max_speed = 2
+      speed = Utils.random(1, max_speed) * (1 * modifier)
+      if speed > max_speed
+        speed = max_speed
+      end
+
+      every 5.seconds do
+        spawn_at(
+          x: spawn_x(size),
+          speed: 1,
+          clazz: EnemyCrazy,
+          health: 2
+        )
+      end
+
+      every 1.seconds / 2 do
+        spawn_at(
+          x: spawn_x(size),
+          speed: 3,
+          clazz: EnemySmall,
+          health: 1
+        )
+      end
+
+      every 2.seconds do
+        spawn_at(
+          x: spawn_x(size),
+          speed: speed,
+          clazz: EnemyMedium,
+          health: 2 * (1 + modifier)
+        )
+      end
+
+    end
+
+    if current_level > 12 && current_level < 24
+      modifier = difficulty_modifier
+      size = 300 + (100 * modifier)
+
+      max_speed = 3
+      speed = Utils.random(1, max_speed) * (1 * modifier)
+      if speed > max_speed
+        speed = max_speed
+      end
+
+      every 1.seconds / 2 do
+        spawn_at(
+          x: spawn_x(size),
+          speed: speed,
+          clazz: EnemySmall,
+          health: 2 * (1 + modifier)
+        )
       end
     end
 
@@ -606,5 +548,16 @@ class Blocks
     # end
 
     # end
+  end
+
+  def spawn_in_circle(num_enemies: 15, radius: 200)
+    spawn_x = 640 # center of the screen
+    spawn_y = -500 # center of the screen
+    num_enemies.times do |i|
+      angle = 2 * Math::PI * i / num_enemies
+      x = spawn_x + radius * Math.cos(angle)
+      y = spawn_y + radius * Math.sin(angle)
+      spawn_at(x: x, y: y, speed: 1.5, clazz: EnemySmall, health: 1)
+    end
   end
 end

@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 class HomingMissile
-  MISSILE_SPEED = 5
-  FIRE_INTERVAL = 20
+  # MISSILE_SPEED = 2
+  # FIRE_INTERVAL = 60 * 3
   # FIRE_INTERVAL = 30
   MIN_LOCK_DISTANCE = 200
+  DAMAGE_SCALE_FACTOR = 1.5
   attr_accessor :missiles, :last_fired
 
   attr_gtk
@@ -16,8 +17,42 @@ class HomingMissile
     @level = 1
   end
 
+  def damage
+    (1 * DAMAGE_SCALE_FACTOR**state.power_ups.homing_missile.level).round
+  end
+
+  def fire_interval
+    case state.power_ups.homing_missile.level
+    when 1
+      60 * 3
+    when 2
+      60 * 2
+    when 3
+      30
+    when 4
+      20
+    else
+      10
+    end
+  end
+
+  def speed
+    case state.power_ups.homing_missile.level
+    when 1
+      2
+    when 2
+      2.5
+    when 3
+      3
+    when 4
+      4
+    else
+      5
+    end
+  end
+
   def tick(player:, enemies:)
-    if state.tick_count >= @last_fired + FIRE_INTERVAL
+    if state.tick_count >= @last_fired + fire_interval
       current_targets = @missiles.map { |missile| missile[:target] } || []
       target = enemies.faster_find do |enemy|
         @args.geometry.distance(player, enemy) >= MIN_LOCK_DISTANCE &&
@@ -44,15 +79,16 @@ class HomingMissile
       end
     end
 
-    @missiles.reject! { |missile| missile.y > SCREEN_SIZE_Y }
+    @missiles.reject! { |missile| missile.y > SCREEN_SIZE_Y || missile.y < 0 }
+    @missiles.reject! { |missile| missile.x < 0 || missile.x > SCREEN_SIZE_X }
     @missiles.reject! { |missile| missile.fade_start_time != -1 && missile.a <= 0 }
 
     @missiles.each do |missile|
       angle = @args.geometry.angle_to(missile, missile[:target])
-      missile[:x] += MISSILE_SPEED * Math.cos(angle.to_radians)
-      missile[:y] += MISSILE_SPEED * Math.sin(angle.to_radians)
-      base_dx = MISSILE_SPEED * Math.cos(angle.to_radians)
-      base_dy = MISSILE_SPEED * Math.sin(angle.to_radians)
+      missile[:x] += speed * Math.cos(angle.to_radians)
+      missile[:y] += speed * Math.sin(angle.to_radians)
+      base_dx = speed * Math.cos(angle.to_radians)
+      base_dy = speed * Math.sin(angle.to_radians)
 
       missile.dx = base_dx * state.slow_mo_x
       missile.dy = base_dy * state.slow_mo_x
@@ -63,14 +99,13 @@ class HomingMissile
 
       if missile.hit
         missile[:x] += missile.hit_direction
-        missile[:y] += MISSILE_SPEED + 1.5
+        missile[:y] += speed + 1.5
       else
         missile[:x] += base_dx + sine_wave_x
         missile[:y] += base_dy + sine_wave_y
       end
 
       if missile.intersect_rect?(missile[:target]) && !missile.hit
-        damage = 1
         missile.target.damage(damage, args)
         missile.fade_start_time = args.state.tick_count
 
@@ -82,7 +117,7 @@ class HomingMissile
           y: missile[:target].y,
           dx: missile[:target].dx,
           dy: missile[:target].dy,
-          text: damage
+          text: damage.to_s
         )
 
         Particles.spawn_random(
@@ -104,6 +139,7 @@ class HomingMissile
   end
 
   def draw
+    return unless state.power_ups.homing_missile.active
     @missiles.map do |missile|
       if missile.fade_start_time != -1
         current_tick = args.state.tick_count

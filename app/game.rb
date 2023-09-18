@@ -28,6 +28,9 @@ class Game
   attr_gtk
 
   SAVE_TIMER = 120
+  SONG_LENGTH = 192.0
+
+  LOOP_SONG = "sounds/I've Never Found My Jacket (Song Retro Game) Loop.mp3"
 
   def initialize(args)
     @player = Player.new(args)
@@ -41,38 +44,8 @@ class Game
     @base = Base.new
   end
 
-  def tick(args)
-    @player.args = args
-    @gun.args = args
-    @homing_missile.args = args
-    @laser.args = args
-    @blocks.args = args
-    @rotating_orb.args = args
-    @pendulum.args = args
-    @base.args = args
-
-    SlowMo.defaults(args)
-    PowerUps.defaults(args)
-
-    if args.state.tick_count.zero?
-      @rotating_orb.defaults
-      @pendulum.defaults
-
-      state.enable_collisions = true
-      state.spawn_rate = 0.5
-      state.spawn_area = 100
-      state.health = 10
-      state.screen_angle = 0
-      state.start_screen_angle = false
-      state.power_level = 1
-      state.max_power_level = 100
-
-      # audio[:bg_music] = {
-      #   input: "sounds/I've Never Found My Jacket (Song Retro Game).mp3",
-      #   looping: true,
-      #   gain: 0.5
-      # }
-    end
+  def update_state
+    # state.spawn_rate = (1 * Level.difficulty(args)).round
 
     state.current_level ||= 1
     state.current_level_xp ||= 0
@@ -88,61 +61,37 @@ class Game
     state.upgrade_screen ||= false
 
     state.debug ||= false
+  end
 
-    # state.spawn_rate = (1 * Level.difficulty(args)).round
+  def calculate_next_level_xp(current_level, a = 1.0, b = 0.0)
+    (a * Math.log(current_level) + 1.5).round
+  end
 
-    outputs[:game].transient!
-    outputs[:base].transient!
+  def level_up!
+    SlowMo.slow_mo!(args)
+    state.power_up_left_right = PowerUps.left_right(args)
+    state.current_level += 1
 
-    if state.tutorial_timer >= 0
-      state.tutorial_timer -= 1
-    else
-      state.needs_tutorial = false
+    state.next_level_xp = (state.growth_rate * state.next_level_xp).round
+    # state.next_level_xp = calculate_next_level_xp(state.current_level).round
+    state.current_level_xp = 0
+    state.blocks_hit = 0
+    state.input_delay = 50
+    # state.start_screen_angle = true
+    # state.spawn_rate += 1
+    # state.spawn_area += 100
+    Save.save!(args)
+    if state.current_level > 3
+      state.upgrade_screen = true
     end
+  end
 
-    # Update
+  def update_player_and_powerups
     @player.tick
-
-    if state.start_screen_angle
-      state.screen_angle += 0.9
-    end
-
-    if state.screen_angle >= 179.99
-      state.start_screen_angle = false
-    end
-
-    if state.blocks_hit >= state.next_level_xp
-      SlowMo.slow_mo!(args)
-      state.power_up_left_right = PowerUps.left_right(args)
-      state.current_level += 1
-      state.next_level_xp = (state.growth_rate * state.next_level_xp).round
-      state.current_level_xp = 0
-      state.blocks_hit = 0
-      state.input_delay = 50
-      # state.start_screen_angle = true
-      # state.spawn_rate += 1
-      # state.spawn_area += 100
-      Save.save!(args)
-      if state.current_level > 3
-        state.upgrade_screen = true
-      end
-    end
-
-    # if state.power_ups.gun.active
-    #   @gun.tick(player: @player.sprite, enemies: @blocks.blocks)
-    # end
 
     if state.power_ups.homing_missile.active
       @homing_missile.tick(player: @player.sprite, enemies: @blocks.blocks)
     end
-
-    if state.power_ups.pendulum.active
-      @pendulum.tick(player: @player.sprite)
-    end
-
-    # if state.power_ups.laser.active
-    #   @laser.tick(player: @player.sprite, enemies: @blocks.blocks)
-    # end
 
     if state.power_ups.side_shot.active
       @side_shot.tick(args, player: @player.sprite)
@@ -150,6 +99,10 @@ class Game
 
     if state.power_ups.rotating_orb.active
       @rotating_orb.tick(player: @player.entity)
+    end
+
+    if state.power_ups.laser.active
+      @laser.tick(player: @player.entity, enemies: @blocks.blocks)
     end
 
     Particles.tick(args, player: @player.sprite) if args.state.post_processing
@@ -160,18 +113,76 @@ class Game
     @base.tick
     HitLabel.tick(args) if args.state.post_processing
     UpgradeBar.tick(args)
+  end
 
-    if state.enable_collisions
-      @blocks.collision(
-        args,
-        player: @player,
-        side_shot: @side_shot,
-        gun: @gun
-      )
+  def defaults
+    SlowMo.defaults(args)
+    PowerUps.defaults(args)
+    @rotating_orb.defaults
+
+    state.enable_collisions = true
+    state.spawn_rate = 0.5
+    state.spawn_area = 100
+    state.health = 10
+    state.screen_angle = 0
+    state.start_screen_angle = false
+    state.power_level = 1
+    state.max_power_level = 100
+
+    audio[:bg_music] ||= {
+      input: "sounds/I've Never Found My Jacket (Song Retro Game).mp3",
+      looping: true,
+      gain: 0.5,
+      switched: false
+    }
+  end
+
+  def tick(args)
+    @player.args = args
+    @gun.args = args
+    @homing_missile.args = args
+    @laser.args = args
+    @blocks.args = args
+    @rotating_orb.args = args
+    @base.args = args
+
+    outputs[:game].transient!
+    outputs[:base].transient!
+
+    if args.state.tick_count.zero?
+      defaults
     end
 
-    # args.render_target(:game).sprites << @laser.draw(player: @player.sprite) if state.power_ups.laser.active
-    # Draw
+    update_state
+    update_player_and_powerups
+
+    if state.blocks_hit >= state.next_level_xp
+      level_up!
+    end
+
+    # if audio[:bg_music].playtime >= SONG_LENGTH && !audio[:bg_music].switched
+    #   audio[:bg_music] = {
+    #     input: LOOP_SONG,
+    #     looping: true,
+    #     switched: true,
+    #     gain: 0.5
+    #   }
+    # end
+
+    @blocks.collision(
+      args,
+      player: @player,
+      side_shot: @side_shot,
+      gun: @gun,
+      rotating_orb: @rotating_orb
+    )
+
+    if state.tutorial_timer >= 0
+      state.tutorial_timer -= 1
+    else
+      state.needs_tutorial = false
+    end
+
     outputs.background_color = [0, 0, 0]
     args.render_target(:game).background_color = [58, 58, 75]
     args.render_target(:base).sprites << @base.draw
@@ -181,18 +192,19 @@ class Game
       @blocks.draw(args),
       Particles.draw(args),
       TrailParticles.draw(args),
+      @laser.draw(player: @player.sprite),
       @player.draw,
       @homing_missile.draw,
       @homing_missile.draw,
       @rotating_orb.draw,
-      @side_shot.draw(args),
-      @pendulum.draw(player: @player.sprite)
+      @side_shot.draw(args)
     ]
 
     args.render_target(:game).labels << HitLabel.draw(args) if args.state.post_processing
 
     args.render_target(:base).solids << UpgradeBar.draw(args)
 
+    # Health bars
     args.render_target(:game).sprites << @blocks.blocks.map do |block|
       next if block.max_health == 1
       next if block.health <= 0
@@ -294,6 +306,6 @@ class Game
       outputs.labels << {x: 10, y: 35, text: "framerate: #{gtk.current_framerate.round}", r: 255, g: 255, b: 255, font: FONT, size_enum: 3}
     end
 
-    args.outputs.debug << args.gtk.framerate_diagnostics_primitives
+    # args.outputs.debug << args.gtk.framerate_diagnostics_primitives
   end
 end

@@ -15,6 +15,7 @@ require "app/game"
 require "app/save"
 require "app/screens/upgrade_screen"
 require "app/screens/pause_screen"
+require "app/screens/game_over_screen"
 
 # standard:disable Style/Globals, Style/GlobalVars
 
@@ -24,9 +25,9 @@ def tick(args)
   $my_game.args = args
   $upgrade_screen ||= UpgradeScreen.new(args)
   $pause_screen ||= PauseScreen.new(args)
+  $game_over_screen ||= GameOverScreen.new(args)
 
   args.outputs.background_color = [58, 58, 75]
-  # args.state.upgrade_screen = true
 
   if args.state.tick_count.zero?
     Save.load!(args)
@@ -35,8 +36,6 @@ def tick(args)
   if args.keyboard.key_down.r
     reset
   end
-
-  # args.state.upgrade_screen = true
 
   if !args.inputs.keyboard.has_focus && args.gtk.production && args.state.tick_count != 0
     if !args.state.paused
@@ -47,6 +46,8 @@ def tick(args)
     $pause_screen.update
   elsif args.state.upgrade_screen && args.state.tick_count != 0
     $upgrade_screen.tick
+  elsif args.state.game_over && args.state.tick_count != 0
+    $game_over_screen.update
   else
     $my_game.tick(args)
     $pause_screen.update

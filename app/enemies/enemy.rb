@@ -97,6 +97,10 @@ class Enemy
       @hit = true
       @fade_start_time = args.state.tick_count
       args.state.blocks_hit += 1
+
+      if args.state.current_level >= 10
+        args.state.blocks_hit += 1
+      end
     end
   end
 
@@ -120,5 +124,9 @@ class Enemy
   end
 
   def draw
+  end
+
+  def to_s
+    "#{self.class.name} - x: #{@x}, y: #{@y}, w: #{@w}, h: #{@h}, dx: #{@dx}, dy: #{@dy}"
   end
 end

@@ -49,7 +49,7 @@ class UpgradeScreen
       x: 0 + SPACE,
       y: 330,
       # text: "Rotating Orb: Orb that is powerful (Level 1)",
-      text: state.power_up_left_right.first[:text],
+      text: state.power_up_left_right.first[:text] + " (Level #{state.power_up_left_right.first[:level]})",
       r: 255,
       g: 255,
       b: 255,
@@ -75,7 +75,7 @@ class UpgradeScreen
     outputs.labels << {
       x: SCREEN_SIZE_X - SPACE,
       y: 330,
-      text: state.power_up_left_right.second[:text],
+      text: state.power_up_left_right.second[:text] + " (Level #{state.power_up_left_right.second[:level]})",
       r: 255,
       g: 255,
       b: 255,

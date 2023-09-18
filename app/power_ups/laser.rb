@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 class Laser
-  FIRE_INTERVAL = 60
   MIN_LOCK_DISTANCE = 300
-  NUM_SEGMENTS = 15
-  JITTER_AMOUNT = 5
+  NUM_SEGMENTS = 20
+  JITTER_AMOUNT = 15
   LASER_WIDTH = 16
+
+  DAMAGE_SCALE_FACTOR = 1.1
 
   attr_accessor :last_fired
   attr_gtk
@@ -16,7 +17,7 @@ class Laser
     @target = nil
     @lerp_factor = 0.0
     @attached = false
-
+    @fire_duration = 0
     state.laser ||= state.new_entity_strict :laser do |l|
       l.speed = 20.0
       l.last_fired = 0
@@ -24,8 +25,27 @@ class Laser
     end
   end
 
+  def fire_interval
+    case state.power_ups.laser.level
+    when 1
+      60 * 2.5
+    when 2
+      60 * 2
+    when 3
+      60
+    when 4
+      30
+    else
+      20
+    end
+  end
+
+  def damage
+    (1 * DAMAGE_SCALE_FACTOR**state.power_ups.laser.level).round
+  end
+
   def tick(player:, enemies:)
-    if state.tick_count >= @last_fired + FIRE_INTERVAL
+    if state.tick_count >= @last_fired + fire_interval
       @target = enemies.faster_find do |enemy|
         next if enemy.hit
         geometry.distance(player, enemy) >= MIN_LOCK_DISTANCE &&
@@ -48,43 +68,44 @@ class Laser
     if @attached
       if @target
         block = @target
-        state.blocks_hit += 1
-        block.hit = true
-        block.fade_start_time = args.state.tick_count
-        ScreenShake.shake(args, t: 5, i: 5)
 
-        block_dx = 10 * 0.5
+        block.damage(damage, args) do
+          ScreenShake.shake(args, t: 5, i: 5)
 
-        Particles.spawn_random(
-          args,
-          x: block.x + 5,
-          y: block.y + 5,
-          speed: [block_dx.abs, block_dx.abs + 1],
-          amount: [1, 2],
-          life: [10, 30],
-          color: block.particle_color || [103, 205, 252],
-          acceleration_x: [-0.1, 0.1],
-          acceleration_y: [-0.1, 0.1],
-          opacity: [10, 250],
-          size: [2, 8]
-        )
+          block_dx = 10 * 0.5
 
-        block.dx = 0
-        block.dy = 0
-        # block.dy = block.speed * 0.5
-        HitLabel.spawn(args, x: block.x, y: block.y, dx: block.dx, dy: block.dy, text: "3")
-        # Particles.spawn_random(args, amount: [1, 2], x: @target.x, y: @target.y, size: [5, 10])
-        # @target.dx = 1 * 0.05
-        # @target.dy = 1 * 0.05
-        # @target.hit = true
+          Sound.play("ESM_GW_bass_one_shot_hit_layer_sweetener_metal_crunchy_shuffle_7_laser_zap.ogg", key: :laser_hit, gain: 0.1)
+
+          Particles.spawn_random(
+            args,
+            x: block.x + 5,
+            y: block.y + 5,
+            speed: [block_dx.abs, block_dx.abs + 1],
+            amount: [1, 2],
+            life: [10, 30],
+            color: block.particle_color || [103, 205, 252],
+            acceleration_x: [-0.1, 0.1],
+            acceleration_y: [-0.1, 0.1],
+            opacity: [10, 250],
+            size: [2, 8]
+          )
+
+          block.dx = 0
+          block.dy = 0
+          HitLabel.spawn(args, x: block.x, y: block.y, dx: block.dx, dy: block.dy, text: damage.to_s)
+          Particles.spawn_random(args, amount: [1, 2], x: @target.x, y: @target.y, size: [5, 10])
+          block.dx = Utils.random(-25, 25) * 0.05
+          block.dy = 2 * 0.05
+        end
+
+        if state.power_ups.laser.level < 5
+          @last_fired = state.tick_count
+          @target = nil
+        else
+          @last_fired = -1
+        end
       end
-      # puts "whatever"
 
-      # enemies.delete(@target)
-
-      # @target.dy = -10
-
-      @last_fired = -1
     end
   end
 
@@ -129,10 +150,10 @@ class Laser
         y: prev_y,
         w: Utils.random(2, LASER_WIDTH),
         h: Utils.random(2, LASER_WIDTH),
-        # path: "sprites/laser_segment_#{[1, 2, 3, 4, 5].sample}.png",
-        path: "sprites/laser_segment.png",
-        a: Utils.random(0, 255),
-        angle: Utils.random(30, 255)
+        path: "sprites/laser_segment_#{[1, 2, 3, 4, 5].sample}.png",
+        # path: "sprites/laser_segment.png",
+        a: Utils.random(200, 255),
+        angle: Utils.random(0, 360)
       }
 
       prev_x, prev_y = segment_end_x, segment_end_y

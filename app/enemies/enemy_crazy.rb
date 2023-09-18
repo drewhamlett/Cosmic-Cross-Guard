@@ -1,8 +1,8 @@
 require "app/enemies/enemy"
 
 class EnemyCrazy < Enemy
-  def initialize(x:, y:, w:, h:, speed:, health: 1)
-    super(x: x, y: y, w: w, h: h, speed: speed, flash_time: 5, health: health)
+  def initialize(x:, y:, speed:, health: 1)
+    super(x: x, y: y, w: 24, h: 24, speed: speed, flash_time: 5, health: health)
     @path = "sprites/enemy_crazy.png"
     @sine_angle = 0
   end

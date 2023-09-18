@@ -24,7 +24,7 @@ class Save
       args.gtk.args.state.tutorial_timer = 0
     end
   rescue => error
-    args.gtk.args.state.needs_tutorial = true
-    puts error
+    # args.gtk.args.state.needs_tutorial = true
+    # puts error
   end
 end
