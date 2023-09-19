@@ -100,6 +100,8 @@ class Enemy
 
       if args.state.current_level >= 10
         args.state.blocks_hit += 1
+      elsif args.state.current_level >= 15
+        args.state.blocks_hit += 5
       end
     end
   end

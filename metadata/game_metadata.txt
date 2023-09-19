@@ -1,8 +1,8 @@
 devid=drewhjava
-version=0.5
+version=1.1
 icon=metadata/icon.png
 devtitle=Cosmic Cross Guard
-gameid=cosmic-cross-guard-2
+gameid=cosmic-cross-guard
 gametitle=Cosmic Cross Guard
 
 # === Flags available at all licensing tiers ===
@@ -13,9 +13,7 @@ scale_quality=0
 # === Flags available in DragonRuby Game Toolkit Pro ====
 # Uncomment the entry below to bytecode compile your Ruby code
 compile_ruby=true
-
 highdpi=true
-
 hd=true
 
 # orientation=portrait

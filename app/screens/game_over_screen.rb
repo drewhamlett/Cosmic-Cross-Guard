@@ -7,14 +7,14 @@ class GameOverScreen
   end
 
   def update
-    position = 300
-
     state.game_over ||= false
     state.game_over_fade_in ||= 0
 
     if inputs.keyboard.key_down.space
       state.health = 10
-      state.current_level = 1
+      state.current_level = 10
+      state.base.each { |base| base[:hit] = false }
+
       state.game_over = !state.game_over
       state.game_over_fade_in = 0
     end

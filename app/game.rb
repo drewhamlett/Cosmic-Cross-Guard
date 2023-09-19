@@ -53,6 +53,8 @@ class Game
     state.growth_rate ||= 1.5
     state.blocks_hit ||= 0
 
+    state.spawn_scale_factor ||= 0.8
+
     state.needs_tutorial ||= false
     state.tutorial_timer ||= 60 * 15
 
@@ -73,6 +75,7 @@ class Game
     state.current_level += 1
 
     state.next_level_xp = (state.growth_rate * state.next_level_xp).round
+
     # state.next_level_xp = calculate_next_level_xp(state.current_level).round
     state.current_level_xp = 0
     state.blocks_hit = 0

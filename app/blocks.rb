@@ -194,11 +194,21 @@ class Blocks
       )
       collisions.each do |block|
         next unless block.fade_start_time == -1 && block.hit == false
+        damage = side_shot.damage(args)
 
-        block.damage(1, args) do
+        block.damage(damage, args) do
           side_shot.bullets.delete(bullet)
           block.dx = -bullet.dx * 0.5
           Sound.play("hits/hit_1.ogg", gain: 0.15, key: :player_side_shot_hit)
+          HitLabel.spawn(
+            args,
+            x: block.x,
+            y: block.y,
+            dx: Utils.random(-5, 5),
+            dy: Utils.random(-5, 5),
+            text: damage.to_s,
+            critical: true
+          )
         end
       end
     end
@@ -221,18 +231,16 @@ class Blocks
       side_shot_collision(side_shot: side_shot)
     end
 
-    if state.power_ups.ghost.active
-      player.ghost_sprites.each do |ghost_sprite|
-        player_ghost_blocks = args.geometry.find_all_intersect_rect(
-          ghost_sprite,
-          @blocks
-        )
-        player_ghost_blocks.each do |block|
-          next unless block.fade_start_time == -1 && block.hit == false
-          block.damage(1, args) do
-            block.dy += 1
-            Sound.play("hits/hit_1.ogg", gain: 0.15, key: :player_ghost_hit)
-          end
+    player.ghost_sprites.each do |ghost_sprite|
+      player_ghost_blocks = args.geometry.find_all_intersect_rect(
+        ghost_sprite,
+        @blocks
+      )
+      player_ghost_blocks.each do |block|
+        next unless block.fade_start_time == -1 && block.hit == false
+        block.damage(1, args) do
+          block.dy += 1
+          Sound.play("hits/hit_1.ogg", gain: 0.15, key: :player_ghost_hit)
         end
       end
     end
@@ -276,6 +284,15 @@ class Blocks
     else
       0
     end
+  end
+
+  def scale_health
+    base_health = 1
+    growth_rate = 0.05  # 10 additional health points per level
+    current_level = state.current_level
+
+    health = base_health + (growth_rate * current_level)
+    health.floor
   end
 
   def spawn_blocks(args)
@@ -393,17 +410,35 @@ class Blocks
       end
     end
 
-    if current_level > 8 && current_level <= 12
+    state.level_start_time ||= 0
+
+    seconds = 15
+    if current_level > 8 && current_level <= 500
+      if args.state.tick_count - state.level_start_time >= seconds * 60 # 30 seconds * 60 frames per second
+        args.state.current_level += 1
+        state.level_start_time = args.state.tick_count
+      end
+
+      # spawn_rate = (2 * (state.spawn_scale_factor**current_level) * 60.0)
+
+      upper_limit = 60.0
+      floor_limit = 10.0
+      decay_rate = 0.001 # Tune this to make the rate reduce faster or slower
+
+      rate = upper_limit - (upper_limit - floor_limit) * Math.exp(-decay_rate * current_level)
+
+      spawn_rate = rate.round
+
       modifier = difficulty_modifier
       size = 300 + (70 * modifier)
 
-      max_speed = 2
+      max_speed = 5
       speed = Utils.random(1, max_speed) * (1 * modifier)
       if speed > max_speed
         speed = max_speed
       end
 
-      every 5.seconds do
+      every 4.seconds do
         spawn_at(
           x: spawn_x(size),
           speed: 1,
@@ -412,19 +447,28 @@ class Blocks
         )
       end
 
-      every 1.seconds / 2 do
+      every 2.seconds do
         spawn_at(
-          x: spawn_x(size),
-          speed: 3,
-          clazz: EnemySmall,
-          health: 1
+          x: [1000, 200].sample,
+          speed: 1,
+          clazz: EnemyLarge,
+          health: 4
         )
       end
 
-      every 2.seconds do
+      every spawn_rate do
         spawn_at(
           x: spawn_x(size),
           speed: speed,
+          clazz: EnemySmall,
+          health: scale_health
+        )
+      end
+
+      every 3.seconds do
+        spawn_at(
+          x: spawn_x(size),
+          speed: 2,
           clazz: EnemyMedium,
           health: 2 * (1 + modifier)
         )
@@ -432,25 +476,25 @@ class Blocks
 
     end
 
-    if current_level > 12 && current_level < 24
-      modifier = difficulty_modifier
-      size = 300 + (100 * modifier)
+    # if current_level > 12 && current_level < 24
+    #   modifier = difficulty_modifier
+    #   size = 300 + (100 * modifier)
 
-      max_speed = 3
-      speed = Utils.random(1, max_speed) * (1 * modifier)
-      if speed > max_speed
-        speed = max_speed
-      end
+    #   max_speed = 3
+    #   speed = Utils.random(1, max_speed) * (1 * modifier)
+    #   if speed > max_speed
+    #     speed = max_speed
+    #   end
 
-      every 1.seconds / 2 do
-        spawn_at(
-          x: spawn_x(size),
-          speed: speed,
-          clazz: EnemySmall,
-          health: 2 * (1 + modifier)
-        )
-      end
-    end
+    #   every 1.seconds / 2 do
+    #     spawn_at(
+    #       x: spawn_x(size),
+    #       speed: speed,
+    #       clazz: EnemySmall,
+    #       health: 2 * (1 + modifier)
+    #     )
+    #   end
+    # end
 
     # if (args.tick_count % ((60 / spawn_rate) * 5)).zero?
     #   spawn_x = Utils.random((1280 / 2) - (size / 2), (1280 / 2) + (size / 2))

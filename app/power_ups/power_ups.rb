@@ -10,16 +10,16 @@ class PowerUps
       #   active: false,
       #   text: "Base Orb: Protect base with an orb"
       # },
-      ghost: {
-        level: 1,
-        active: false,
-        text: "Ghost Dash"
-      },
-      repair_base: {
-        level: 1,
-        active: false,
-        text: "Repair Base"
-      },
+      # ghost: {
+      #   level: 1,
+      #   active: false,
+      #   text: "Ghost Dash"
+      # },
+      # repair_base: {
+      #   level: 1,
+      #   active: false,
+      #   text: "Repair Base"
+      # },
       side_shot: {
         level: 1,
         active: false,

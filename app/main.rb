@@ -37,6 +37,10 @@ def tick(args)
     reset
   end
 
+  if args.state.health <= 0 && args.state.tick_count != 0
+    args.state.game_over = true
+  end
+
   if !args.inputs.keyboard.has_focus && args.gtk.production && args.state.tick_count != 0
     if !args.state.paused
       args.state.paused = true

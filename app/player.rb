@@ -93,19 +93,17 @@ class Player
     @dashing = true
     @dash_timer = 10
 
-    if state.power_ups.ghost.active
-      @ghost_sprites << {
-        x: @player.x,
-        y: @player.y,
-        w: @player.w,
-        h: @player.h,
-        path: @player.path,
-        a: 150,
-        blendmode_enum: 1,
-        angle: Utils.random(-10, 10),
-        fade_time: 60
-      }
-    end
+    @ghost_sprites << {
+      x: @player.x,
+      y: @player.y,
+      w: @player.w,
+      h: @player.h,
+      path: @player.path,
+      a: 150,
+      blendmode_enum: 1,
+      angle: Utils.random(-10, 10),
+      fade_time: 60
+    }
   end
 
   def draw
